@@ -1,0 +1,22 @@
+Elena Méndez Silva
+Desarrolladora Frontend Especialista en React
+
+Resumen:
+Apasionada por la creación de interfaces de usuario hermosas y funcionales. 6 años enfocada exclusivamente en el ecosistema de React.
+
+Experiencia:
+- Senior Frontend Developer en PixelCreative (2019 - Presente):
+  Desarrollo de interfaces visuales de alta precisión basándose en diseños de Figma. Uso constante de React Hooks y Context API para la gestión de estados.
+- Frontend Developer en StartUpX (2017 - 2019):
+  Creación de componentes reutilizables y mantenimiento de bibliotecas de UI internas.
+
+Habilidades:
+- React.js, JavaScript (ES6+), HTML5, CSS3, SASS.
+- Manejo fluido de Tailwind CSS y Framer Motion para animaciones.
+- Integración de APIs REST.
+
+Educación:
+- Licenciatura en Diseño y Desarrollo Web.
+
+Logros:
+- Rediseño completo del portal de e-commerce de la empresa, aumentando la tasa de conversión en un 15%.

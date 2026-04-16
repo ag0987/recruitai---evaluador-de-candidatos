@@ -1,0 +1,19 @@
+Puesto: Senior Frontend Developer (React/TypeScript)
+
+Descripción:
+Buscamos un Ingeniero de Software Senior especializado en Frontend para liderar el desarrollo de nuestras interfaces de usuario de alta fidelidad. Serás responsable de la arquitectura de componentes, la optimización del rendimiento y la mentoría de desarrolladores junior.
+
+Requisitos Obligatorios:
+- Más de 5 años de experiencia comprobable en desarrollo web.
+- Dominio experto de React.js y su ecosistema (Hooks, Context, Redux).
+- Experiencia sólida con TypeScript en entornos de producción.
+- Conocimientos profundos de CSS moderno (Tailwind CSS, Styled Components).
+- Experiencia en integración de APIs RESTful y GraphQL.
+
+Deseable:
+- Conocimientos en servicios de nube (AWS o Azure).
+- Experiencia en testing unitario y de integración (Jest, Cypress).
+- Mentalidad de diseño y atención al detalle.
+
+Idiomas:
+- Inglés técnico fluido (leído y escrito).

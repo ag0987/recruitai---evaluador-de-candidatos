@@ -1,0 +1,19 @@
+CURRICULUM VITAE
+
+Nombre: Lucía Ferrand
+Objetivo: Busco mi primera oportunidad laboral en el mundo de la tecnología como desarrolladora Junior.
+
+Formación:
+- Bootcamp Full Stack Developer (600 horas) - 2025
+- Grado en Administración de Empresas - 2022
+
+Proyectos:
+- "Mi Primera Web": Una landing page responsiva usando HTML y CSS.
+- "Lista de Tareas": App sencilla en JavaScript para gestionar tareas diarias.
+
+Habilidades en aprendizaje:
+- HTML, CSS, JavaScript básico.
+- Nociones de React y Git.
+
+Experiencia anterior:
+- Asistente Administrativa en Impuestos S.A. (2022 - 2024).
