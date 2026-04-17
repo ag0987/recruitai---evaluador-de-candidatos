@@ -16,5 +16,9 @@ View your app in AI Studio: https://ai.studio/apps/c339b905-b7de-4d36-abf0-24db6
 1. Install dependencies:
    `npm install`
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+3. Run the backend server:
+   `npm run server`
+4. Run the frontend app:
    `npm run dev`
+
+> The frontend proxy está configurado para reenviar `/api` a `http://localhost:4000`, de modo que la clave de Gemini se mantiene segura en el backend.
