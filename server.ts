@@ -247,6 +247,100 @@ Si score es 7-10, SIEMPRE debe ser "Avanzar".
   }
 });
 
+export interface InterviewQuestion {
+  category: 'Técnica' | 'Comportamental' | 'Situacional' | 'Verificación' | string;
+  question: string;
+  rationale: string;
+}
+
+const categoryMap: Record<string, string> = {
+  Tecnica: 'Técnica',
+  Comportamental: 'Comportamental',
+  Situacional: 'Situacional',
+  Verificacion: 'Verificación',
+};
+
+app.post('/api/interview', async (req, res) => {
+  const { jd, cv, evaluation } = req.body as {
+    jd?: string;
+    cv?: string;
+    evaluation?: CandidateEvaluation;
+  };
+
+  if (typeof jd !== 'string' || typeof cv !== 'string' || !evaluation) {
+    return res.status(400).json({ error: 'Los campos jd, cv y evaluation son obligatorios.' });
+  }
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-flash-latest',
+      contents: [{
+        text: `Eres un entrevistador experto en selección de personal.
+Debes preparar preguntas de entrevista PERSONALIZADAS para el siguiente candidato que ha sido preseleccionado.
+
+DESCRIPCIÓN DEL CARGO:
+${jd}
+
+CV DEL CANDIDATO:
+${cv}
+
+EVALUACIÓN PREVIA:
+- Nombre: ${evaluation.name}
+- Score: ${evaluation.score}/10
+- Fortalezas: ${evaluation.strengths.join(', ')}
+- Brechas: ${evaluation.gaps.join(', ')}
+
+INSTRUCCIONES:
+Genera exactamente 8 preguntas divididas en 4 categorías (2 por categoría):
+
+- "Tecnica": Valida habilidades técnicas clave mencionadas en el CV contra el cargo.
+- "Comportamental": Explora situaciones reales pasadas relevantes para el rol (usa formato STAR).
+- "Situacional": Presenta escenarios hipotéticos específicos del cargo para evaluar criterio.
+- "Verificacion": Confirma logros o afirmaciones concretas del CV que necesitan profundidad.
+
+Para cada pregunta incluye una justificación breve de por qué es relevante PARA ESTE candidato específico.`
+      }],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            questions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  category: { type: Type.STRING, enum: ['Tecnica', 'Comportamental', 'Situacional', 'Verificacion'] },
+                  question: { type: Type.STRING },
+                  rationale: { type: Type.STRING },
+                },
+                required: ['category', 'question', 'rationale'],
+              },
+            },
+          },
+          required: ['questions'],
+        },
+      },
+    });
+
+    const text = response.text || '';
+    const parsed = JSON.parse(text) as { questions: InterviewQuestion[] };
+    const questions = Array.isArray(parsed.questions)
+      ? parsed.questions.map(q => ({ ...q, category: categoryMap[q.category] ?? q.category }))
+      : [];
+    return res.json({ questions });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error('Error en /api/interview:', msg);
+    const isQuota = msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota');
+    return res.status(isQuota ? 429 : 500).json({
+      error: isQuota
+        ? 'Límite de la API alcanzado. Espera unos minutos e intenta de nuevo.'
+        : 'Error al generar preguntas de entrevista.',
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Backend de RecruitAI escuchando en http://localhost:${port}`);
 });

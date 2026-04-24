@@ -1,31 +1,35 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  FileText, 
-  Upload, 
-  Trash2, 
-  CheckCircle2, 
-  AlertCircle, 
-  XCircle, 
-  TrendingUp, 
-  Trophy, 
+import {
+  FileText,
+  Upload,
+  Trash2,
+  CheckCircle2,
+  AlertCircle,
+  XCircle,
+  TrendingUp,
+  Trophy,
   Target,
   ChevronRight,
   ClipboardList,
-  Zap
+  Zap,
+  MessageSquare,
+  Lightbulb,
 } from 'lucide-react';
-import { evaluateCandidate, CandidateEvaluation } from './lib/gemini';
+import { evaluateCandidate, prepareInterview, CandidateEvaluation, InterviewPrep } from './lib/gemini';
 import { parsePDF, parseDOCX } from './lib/fileParser';
 
 // --- Types ---
 interface FileWithContent {
   id: string;
   name: string;
-  fileType: string; // ej: 'txt', 'pdf', 'docx', 'doc'
+  fileType: string;
   content: string;
   evaluation?: CandidateEvaluation;
   status: 'loading' | 'idle' | 'processing' | 'completed' | 'error';
   errorMessage?: string;
+  interviewPrep?: InterviewPrep;
+  interviewStatus?: 'idle' | 'loading' | 'ready' | 'error';
 }
 
 // --- Components ---
@@ -169,6 +173,27 @@ export default function App() {
     }
   };
 
+  const handlePrepareInterview = async (candidateId: string) => {
+    const candidate = candidates.find(c => c.id === candidateId);
+    if (!candidate?.evaluation || !jd) return;
+
+    setCandidates(prev => prev.map(c =>
+      c.id === candidateId ? { ...c, interviewStatus: 'loading' } : c
+    ));
+
+    try {
+      const prep = await prepareInterview(jd, candidate.content, candidate.evaluation);
+      setCandidates(prev => prev.map(c =>
+        c.id === candidateId ? { ...c, interviewPrep: prep, interviewStatus: 'ready' } : c
+      ));
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al generar las preguntas.';
+      setCandidates(prev => prev.map(c =>
+        c.id === candidateId ? { ...c, interviewStatus: 'error', errorMessage: msg } : c
+      ));
+    }
+  };
+
   const loadDemoData = () => {
     // Clear previous results first
     setCandidates([]);
@@ -195,6 +220,60 @@ Idiomas:
 - Inglés técnico fluido (leído y escrito).`;
 
     const demoCandidates: FileWithContent[] = [
+      {
+        id: 'demo-0',
+        name: 'CV_Sofia_Herrera.pdf',
+        fileType: 'PDF',
+        content: `SOFÍA HERRERA MONTOYA
+Senior Frontend Engineer | React · TypeScript · GraphQL
+sofia.herrera@email.com | +57 315 982 4401 | linkedin.com/in/sofiaherrera | github.com/sofiaherrera
+
+PERFIL PROFESIONAL
+Ingeniera Frontend con 7 años de experiencia construyendo aplicaciones web de alta escala en entornos de producción. Especialista en React y TypeScript, con historial demostrable de liderazgo técnico, mentoría de equipos junior y optimización de rendimiento. Apasionada por el diseño de sistemas de componentes reutilizables y la experiencia de usuario.
+
+EXPERIENCIA PROFESIONAL
+
+Lead Frontend Engineer — Rappi (Bogotá / Remoto) | 2021 – Actualidad
+- Lideré la migración de una SPA legacy (Angular) a React 18 + TypeScript, reduciendo el tiempo de carga inicial en 52%.
+- Diseñé el sistema de design tokens con Tailwind CSS adoptado por 4 equipos (35+ desarrolladores).
+- Implementé arquitectura de micro-frontends con Module Federation, mejorando el time-to-deploy en 40%.
+- Integré APIs GraphQL con Apollo Client y APIs RESTful con React Query en más de 12 flujos críticos.
+- Mentorié a 5 desarrolladores junior, 3 de los cuales fueron promovidos a nivel Mid en 18 meses.
+- Logro clave: reducción del 35% en errores de producción gracias a cobertura de tests con Jest y Cypress al 88%.
+
+Senior Frontend Developer — Platzi (Bogotá) | 2019 – 2021
+- Desarrollé componentes de aula virtual usados por más de 5 millones de estudiantes con React Hooks y Context API.
+- Implementé Redux Toolkit para gestión de estado global en el LMS, eliminando 200+ líneas de código redundante.
+- Configuré pipelines CI/CD en AWS (S3 + CloudFront) con despliegues automáticos desde GitHub Actions.
+- Construí Styled Components con temas dinámicos compatibles con modo oscuro/claro.
+
+Frontend Developer — Bancolombia (Medellín) | 2017 – 2019
+- Desarrollé interfaces web para el portal de banca en línea con JavaScript ES6+, React y Webpack.
+- Integré servicios RESTful del core bancario con manejo robusto de errores y reintentos.
+- Implementé pruebas unitarias con Jest (cobertura 75%) y e2e con Cypress.
+
+HABILIDADES TÉCNICAS
+- Frontend: React 18, TypeScript (5 años en producción), Next.js 14, Vite, Webpack
+- Estado: Redux Toolkit, Zustand, React Query, Apollo Client, Context API
+- CSS: Tailwind CSS (experta), Styled Components, CSS Modules, Framer Motion
+- Testing: Jest, React Testing Library, Cypress, Playwright
+- APIs: GraphQL (Apollo), REST, WebSockets
+- Cloud: AWS (S3, CloudFront, Lambda@Edge), Vercel, Netlify
+- Herramientas: Git, Docker, Figma, Storybook, Chromatic, Sentry
+
+FORMACIÓN
+Ingeniería de Sistemas — Universidad de los Andes, Bogotá (2013 – 2017) | GPA: 4.3/5.0
+AWS Certified Developer – Associate (2022) | Renovado 2024
+
+LOGROS Y RECONOCIMIENTOS
+- Speaker en React Summit 2023: "Micro-frontends en producción: lecciones de Rappi"
+- Contribuidora activa en repositorios open-source: 3 PRs mergeados en react-hook-form
+- Premio "Engineer of the Quarter" Q3 2022 – Rappi
+
+IDIOMAS
+Español: Nativo | Inglés: C1 Avanzado (TOEFL iBT 105/120, 2023)`,
+        status: 'idle',
+      },
       {
         id: 'demo-1',
         name: 'CV_Carlos_Ruiz.docx',
@@ -710,12 +789,37 @@ Sé React y tengo experiencia en frontend.`,
                           <h4 className="text-2xl font-bold text-text-main mb-2 tracking-tight italic">{c.evaluation?.name}</h4>
                           <span className="text-[10px] bg-bg-input px-2 py-1 rounded text-text-dim font-black uppercase tracking-widest border border-border-dark">ID: {c.id.toUpperCase()}</span>
                         </div>
-                        <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-4 flex-wrap justify-end">
                           <div className="text-center p-3 rounded-lg bg-bg-input border border-border-dark min-w-[100px]">
                             <p className="text-[10px] font-bold text-text-dim uppercase tracking-[0.2em] mb-1">Score Global</p>
                             <p className="text-3xl font-black font-mono text-text-main leading-none">{c.evaluation?.score}</p>
                           </div>
                           {c.evaluation && <RecommendationBadge rec={c.evaluation.recommendation} />}
+                          {c.evaluation?.recommendation === 'Avanzar' && (
+                            <button
+                              onClick={() => handlePrepareInterview(c.id)}
+                              disabled={c.interviewStatus === 'loading'}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-bold border transition-all
+                                ${c.interviewStatus === 'ready'
+                                  ? 'bg-success-green/10 text-success-green border-success-green/30 hover:brightness-110'
+                                  : c.interviewStatus === 'loading'
+                                    ? 'bg-bg-input text-text-dim border-border-dark cursor-not-allowed'
+                                    : 'bg-accent-blue/10 text-accent-blue border-accent-blue/30 hover:bg-accent-blue/20'
+                                }`}
+                            >
+                              {c.interviewStatus === 'loading' ? (
+                                <>
+                                  <div className="w-3 h-3 border-2 border-accent-blue border-t-transparent rounded-full animate-spin" />
+                                  Generando...
+                                </>
+                              ) : (
+                                <>
+                                  <MessageSquare size={13} />
+                                  {c.interviewStatus === 'ready' ? 'Ver entrevista' : 'Preparar entrevista'}
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -828,6 +932,73 @@ Sé React y tengo experiencia en frontend.`,
                           </div>
                         </div>
                       )}
+
+                      {/* Panel de preguntas de entrevista */}
+                      <AnimatePresence>
+                        {c.interviewStatus === 'ready' && c.interviewPrep && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-8 pt-8 border-t border-border-dark overflow-hidden"
+                          >
+                            <div className="flex items-center gap-2 mb-6">
+                              <div className="bg-accent-blue/10 p-2 rounded-lg border border-accent-blue/20">
+                                <MessageSquare size={16} className="text-accent-blue" />
+                              </div>
+                              <div>
+                                <h5 className="text-[13px] font-bold text-text-main italic">Guía de Entrevista</h5>
+                                <p className="text-[10px] text-text-dim uppercase tracking-widest">Personalizada para {c.evaluation?.name}</p>
+                              </div>
+                            </div>
+
+                            {(['Técnica', 'Comportamental', 'Situacional', 'Verificación'] as const).map((cat) => {
+                              const catColors = {
+                                Técnica:       { border: 'border-accent-blue/20',    bg: 'bg-accent-blue/5',    text: 'text-accent-blue',    dot: 'bg-accent-blue' },
+                                Comportamental:{ border: 'border-warning-yellow/20', bg: 'bg-warning-yellow/5', text: 'text-warning-yellow',  dot: 'bg-warning-yellow' },
+                                Situacional:   { border: 'border-success-green/20',  bg: 'bg-success-green/5',  text: 'text-success-green',   dot: 'bg-success-green' },
+                                Verificación:  { border: 'border-text-dim/20',       bg: 'bg-bg-deep',          text: 'text-text-dim',        dot: 'bg-text-dim' },
+                              };
+                              const questions = c.interviewPrep!.questions.filter(q => q.category === cat);
+                              if (!questions.length) return null;
+                              const colors = catColors[cat];
+                              return (
+                                <div key={cat} className="mb-6">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                                    <h6 className={`text-[11px] font-black uppercase tracking-widest ${colors.text}`}>{cat}</h6>
+                                  </div>
+                                  <div className="space-y-3">
+                                    {questions.map((q, qi) => (
+                                      <div key={qi} className={`p-4 rounded-xl border ${colors.border} ${colors.bg}`}>
+                                        <p className="text-[13px] font-semibold text-text-main leading-snug mb-2">
+                                          {q.question}
+                                        </p>
+                                        <div className="flex items-start gap-1.5">
+                                          <Lightbulb size={11} className="text-text-dim flex-shrink-0 mt-0.5" />
+                                          <p className="text-[11px] text-text-dim leading-snug italic">{q.rationale}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </motion.div>
+                        )}
+                        {c.interviewStatus === 'error' && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="mt-6 p-4 rounded-xl bg-danger-red/10 border border-danger-red/20 flex items-start gap-2"
+                          >
+                            <AlertCircle size={14} className="text-danger-red flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-danger-red font-bold leading-snug">
+                              {c.errorMessage || 'No se pudieron generar las preguntas. Intenta de nuevo.'}
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </motion.article>
                   ))}
                 </div>

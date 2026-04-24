@@ -1,0 +1,48 @@
+SOFÍA HERRERA MONTOYA
+Senior Frontend Engineer | React · TypeScript · GraphQL
+sofia.herrera@email.com | +57 315 982 4401 | linkedin.com/in/sofiaherrera | github.com/sofiaherrera
+
+PERFIL PROFESIONAL
+Ingeniera Frontend con 7 años de experiencia construyendo aplicaciones web de alta escala en entornos de producción. Especialista en React y TypeScript, con historial demostrable de liderazgo técnico, mentoría de equipos junior y optimización de rendimiento. Apasionada por el diseño de sistemas de componentes reutilizables y la experiencia de usuario.
+
+EXPERIENCIA PROFESIONAL
+
+Lead Frontend Engineer — Rappi (Bogotá / Remoto) | 2021 – Actualidad
+- Lideré la migración de una SPA legacy (Angular) a React 18 + TypeScript, reduciendo el tiempo de carga inicial en 52%.
+- Diseñé el sistema de design tokens con Tailwind CSS adoptado por 4 equipos (35+ desarrolladores).
+- Implementé arquitectura de micro-frontends con Module Federation, mejorando el time-to-deploy en 40%.
+- Integré APIs GraphQL con Apollo Client y APIs RESTful con React Query en más de 12 flujos críticos.
+- Mentorié a 5 desarrolladores junior, 3 de los cuales fueron promovidos a nivel Mid en 18 meses.
+- Logro clave: reducción del 35% en errores de producción gracias a cobertura de tests con Jest y Cypress al 88%.
+
+Senior Frontend Developer — Platzi (Bogotá) | 2019 – 2021
+- Desarrollé componentes de aula virtual usados por más de 5 millones de estudiantes con React Hooks y Context API.
+- Implementé Redux Toolkit para gestión de estado global en el LMS, eliminando 200+ líneas de código redundante.
+- Configuré pipelines CI/CD en AWS (S3 + CloudFront) con despliegues automáticos desde GitHub Actions.
+- Construí Styled Components con temas dinámicos compatibles con modo oscuro/claro.
+
+Frontend Developer — Bancolombia (Medellín) | 2017 – 2019
+- Desarrollé interfaces web para el portal de banca en línea con JavaScript ES6+, React y Webpack.
+- Integré servicios RESTful del core bancario con manejo robusto de errores y reintentos.
+- Implementé pruebas unitarias con Jest (cobertura 75%) y e2e con Cypress.
+
+HABILIDADES TÉCNICAS
+- Frontend: React 18, TypeScript (5 años en producción), Next.js 14, Vite, Webpack
+- Estado: Redux Toolkit, Zustand, React Query, Apollo Client, Context API
+- CSS: Tailwind CSS (experta), Styled Components, CSS Modules, Framer Motion
+- Testing: Jest, React Testing Library, Cypress, Playwright
+- APIs: GraphQL (Apollo), REST, WebSockets
+- Cloud: AWS (S3, CloudFront, Lambda@Edge), Vercel, Netlify
+- Herramientas: Git, Docker, Figma, Storybook, Chromatic, Sentry
+
+FORMACIÓN
+Ingeniería de Sistemas — Universidad de los Andes, Bogotá (2013 – 2017) | GPA: 4.3/5.0
+AWS Certified Developer – Associate (2022) | Renovado 2024
+
+LOGROS Y RECONOCIMIENTOS
+- Speaker en React Summit 2023: "Micro-frontends en producción: lecciones de Rappi"
+- Contribuidora activa en repositorios open-source: 3 PRs mergeados en react-hook-form
+- Premio "Engineer of the Quarter" Q3 2022 – Rappi
+
+IDIOMAS
+Español: Nativo | Inglés: C1 Avanzado (TOEFL iBT 105/120, 2023)
