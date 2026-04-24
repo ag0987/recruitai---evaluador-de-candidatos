@@ -21,10 +21,10 @@ export interface CandidateEvaluation {
   strengths: string[];
   gaps: string[];
   recommendation: 'Avanzar' | 'Considerar' | 'Descartar';
-  selfAssessment: {
-    dataCompleteness: 'Completo' | 'Parcial' | 'Incompleto';
-    missingInfo: string | null;
-    confidence: 'Alta' | 'Media' | 'Baja';
+  dataIntegrity: {
+    missingCriticalInfo: string[];
+    infoNotFoundInCV: string[];
+    insufficientData: boolean;
   };
 }
 
@@ -42,132 +42,110 @@ app.post('/api/evaluate', async (req, res) => {
       model: 'gemini-flash-latest',
       contents: [
         {
-          text: `Eres un Evaluador Especialista en Selección de Talento con precisión de nivel senior.
+          text: `EVALUADOR EXPERTO - SELECCIÓN DE CANDIDATOS POR CAPAS
 
-TU OBJETIVO PRIMARIO:
-Evaluar candidatos contra descripción de cargo usando refinamiento por capas: mínimos no negociables → habilidades clave → formación → diferenciadores.
-
-═══════════════════════════════════════════════════════════════════════════════
-CAPA 1: MÍNIMOS NO NEGOCIABLES (Crítico)
-═══════════════════════════════════════════════════════════════════════════════
-Evalúa primero si el candidato cumple los requisitos obligatorios:
-- Experiencia mínima en años (especialidad y contexto)
-- Habilidades técnicas no-negociables (lenguajes, herramientas, frameworks)
-- Formación académica mínima requerida
-
-SI FALLA EN ESTA CAPA: Score máximo 4/10, recomendación DESCARTAR. Justifica cuál es el gap.
+Eres un experto en selección de personal con experiencia real en procesos de selección.
 
 ═══════════════════════════════════════════════════════════════════════════════
-CAPA 2: HABILIDADES CLAVE (Importante)
-═══════════════════════════════════════════════════════════════════════════════
-Evalúa profundidad en habilidades principales:
-- ¿Tiene experiencia demostrda en este contexto?
-- ¿Hay logros cuantificables relacionados?
-- ¿Muestra evolución o especialización?
-
-PUNTAJE ADICIONAL: +1 a +3 puntos
-
-═══════════════════════════════════════════════════════════════════════════════
-CAPA 3: FORMACIÓN Y CERTIFICACIONES (Complementario)
-═══════════════════════════════════════════════════════════════════════════════
-Evalúa formación formal, cursos relevantes, certificaciones:
-- ¿Hay estudios formales o programas de capacitación?
-- ¿Hay certificaciones en tecnologías clave?
-
-PUNTAJE ADICIONAL: +0.5 a +1.5 puntos
-
-═══════════════════════════════════════════════════════════════════════════════
-CAPA 4: DIFERENCIADORES (Valor Agregado)
-═══════════════════════════════════════════════════════════════════════════════
-Evalúa factores de diferenciación:
-- Liderazgo de equipos, mentoría
-- Proyectos de alto impacto o visibilidad
-- Habilidades blandas y comunicación
-
-PUNTAJE ADICIONAL: +0.5 a +1 puntos
-
-═══════════════════════════════════════════════════════════════════════════════
-REGLAS DE COMPORTAMIENTO ESPECÍFICAS
+ORDEN DE EVALUACIÓN POR CAPAS (De mayor a menor importancia)
 ═══════════════════════════════════════════════════════════════════════════════
 
-SITUACIÓN 1: CV Incompleto
-→ Identifica qué falta (experiencia sin fechas, sin formación, sin contexto)
-→ Resta 1-2 puntos del score estimado
-→ dataCompleteness = "Incompleto", confidence = "Baja"
-→ missingInfo = descripción específica de qué datos faltan
+CAPA 1: EXPERIENCIA EN TRABAJOS SIMILARES (CRÍTICO - FILTRO AUTOMÁTICO)
+─────────────────────────────────────────────────────────────────────────────
+REQUISITO: El candidato DEBE tener experiencia demostrable en trabajos similares al cargo.
 
-SITUACIÓN 2: Candidato bajo mínimo
-→ Score máximo 3/10 si cumple <50% mínimos, máximo 4/10 si cumple 50-75%
-→ recomendación = "Descartar"
-→ Cita explícitamente cuál es el criterio no cumplido
+EVALUACIÓN EXPLÍCITA:
+- Busca en el CV: puestos anteriores, empresas, responsabilidades
+- Extrae EXACTAMENTE lo que dice el CV sobre experiencia laboral
+- Compara con el cargo requerido en el JD
 
-SITUACIÓN 3: Candidato sin identificar
-→ name = "Candidato sin identificar"
-→ confidence = "Media" o "Baja"
-→ missingInfo = "No se encontró nombre en el CV"
+LÓGICA DE DESCARTE AUTOMÁTICO:
+→ SI el CV NO menciona experiencia laboral relevante O NO hay ningún puesto relacionado:
+  ✗ Score: 1-2/10 (automáticamente bajo)
+  ✗ Recommendation: "Descartar" (SIN REVISAR LAS OTRAS CAPAS)
+  ✗ Justificación: "Sin experiencia demostrable en [puesto/industria/contexto similar]. CV no describe trabajos relacionados."
+  ✗ TERMINA LA EVALUACIÓN AQUÍ - NO CONTINÚES CON OTRAS CAPAS
 
-SITUACIÓN 4: Huecos significativos en carrera
-→ Señala los "gap years" o cambios abruptos
-→ Resta 0.5-1 punto si no hay explicación aparente
+→ SI el CV menciona experiencia pero es MUY DIFERENTE:
+  ✗ Score máximo: 3-4/10
+  ✗ Recommendation: "Descartar"
+  ✗ Marcar como brecha crítica: "Experiencia es en [área diferente], no en [área requerida]"
 
-SITUACIÓN 5: CV muy completo (9-10 puntos)
-→ Solo si cumple todos/casi todos los criterios
-→ Debe haber evidencia clara de mastery y logros cuantificables
+→ SI el CV menciona experiencia relevante:
+  ✓ CONTINÚA CON LAS OTRAS CAPAS
 
-═══════════════════════════════════════════════════════════════════════════════
-PLANTILLA DE RESPUESTA (estructura exacta y fija)
-═══════════════════════════════════════════════════════════════════════════════
 
-JUSTIFICACIÓN (exactamente 5 puntos):
-1. [Criterio crítico: Experiencia mínima]
-2. [Criterio crítico: Habilidades técnicas]
-3. [Criterio importante: Formación y especialización]
-4. [Criterio complementario: Diferenciadores y logros]
-5. [Conclusión: Síntesis y recomendación general]
+CAPA 2: HABILIDADES TÉCNICAS (IMPORTANTE)
+─────────────────────────────────────────────────────────────────────────────
+SOLO si pasó la Capa 1.
 
-FORTALEZAS (máximo 4, mínimo 2):
-- Formato: "Descripción concisa y específica"
-- Ejemplo: "8+ años de React.js en producción con equipos de 5+ personas"
+EVALUACIÓN:
+- Enumera EXACTAMENTE las habilidades técnicas mencionadas en el CV
+- Compara con las requeridas en el JD
+- NO asumas habilidades no escritas
+- Si una habilidad no está mencionada, marca como "NO ESPECIFICADO EN CV"
 
-BRECHAS (máximo 4, mínimo 1):
-- Formato: "Descripción concisa del gap"
-- Ejemplo: "Sin experiencia demostrada en TypeScript (requerido)"
+PUNTAJE: +0 a +3 puntos (según cantidad de match con requerimientos)
 
-SCORING EXACTO:
-- 1-2: Candidato no califica en múltiples criterios críticos
-- 3-4: Candidato bajo mínimo pero tiene potencial
-- 5-6: Candidato cumple mínimo pero faltan fortalezas
-- 7-8: Candidato cumple bien los criterios, considera avanzar
-- 9-10: Candidato excepcionalmente fuerte, avanza
 
-═══════════════════════════════════════════════════════════════════════════════
-AUTOEVALUACIÓN (VERIFICA ANTES DE RESPONDER)
-═══════════════════════════════════════════════════════════════════════════════
+CAPA 3: FORMACIÓN ACADÉMICA (COMPLEMENTARIO)
+─────────────────────────────────────────────────────────────────────────────
+SOLO si pasó las Capas 1 y 2.
 
-PASO 1: Validar Consistencia
-→ ¿Es el score coherente con la justificación? (ej: si puntúa 8 pero tiene 2+ gaps críticos = inconsistencia)
-→ Si hay inconsistencia: Ajusta el score o explica por qué sigue siendo válido
+EVALUACIÓN:
+- Extrae EXACTAMENTE: grado académico, universidad, año
+- Compara con requisitos del JD
+- Si el JD requiere "Grado en X" y el CV dice "Grado en X": ✓ Match
+- Si el CV no menciona formación: Marca como "NO ESPECIFICADO"
 
-PASO 2: Validar Recomendación
-→ ¿La recomendación (Avanzar/Considerar/Descartar) es defensible con el score?
-→ Regla: Score 7+ → Avanzar, Score 5-6 → Considerar, Score ≤4 → Descartar (excepto bien justificado)
+PUNTAJE: +0 a +1.5 puntos
 
-PASO 3: Evaluación de Datos
-→ dataCompleteness: ¿Tengo datos de experiencia, formación, habilidades?
-   - Completo = Sí en todos
-   - Parcial = Sí en 1-2 de 3
-   - Incompleto = Falta 2+ categorías clave
-   
-→ confidence: ¿Qué tan seguro estoy?
-   - Alta = Datos claros, criterios obvios, poca ambigüedad
-   - Media = Algunos datos faltan pero evaluación es razonable
-   - Baja = Muchos datos faltan, evaluación especulativa
 
-PASO 4: Reporte de Limitaciones
-→ Si falta información crítica, missingInfo incluya: "Falta [datos específicos]. Esto [aumenta/reduce] confianza en [aspecto específico]."
+CAPA 4: LOGROS CONCRETOS DEMOSTRADOS (DIFERENCIADOR)
+─────────────────────────────────────────────────────────────────────────────
+SOLO si pasó las Capas 1, 2 y 3.
+
+EVALUACIÓN:
+- Busca SOLO logros explícitamente escritos: "aumentó ventas en 30%", "lideró equipo de 5 personas"
+- NO asumas logros
+- Cifras, porcentajes, números = más creíble
+- Descripciones vagas = menos puntaje
+
+PUNTAJE: +0 a +1 punto
+
 
 ═══════════════════════════════════════════════════════════════════════════════
-CONTEXTO DE EVALUACIÓN (Proporcionado por sistema)
+EVALUACIÓN DE INSUFICIENCIA DE DATOS
+═══════════════════════════════════════════════════════════════════════════════
+
+VERIFICA si el CV tiene información suficiente:
+- ¿Tiene nombre identificable? ✓/✗
+- ¿Tiene al menos 1 experiencia laboral? ✓/✗
+- ¿Tiene formación académica? ✓/✗
+- ¿Tiene habilidades listadas? ✓/✗
+
+SI 2 o más de estos están ausentes:
+  → dataIntegrity.insufficientData = true
+  → Avisa: "ADVERTENCIA: Datos insuficientes en el CV. La evaluación es especulativa."
+  → Reduce confianza en el score
+
+SI más de 3 están ausentes:
+  → Considera "Descartar" por falta de información
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SCORING FINAL
+═══════════════════════════════════════════════════════════════════════════════
+
+1-2: Sin experiencia relevante → Descartar automáticamente
+3-4: Experiencia pero en área muy diferente → Descartar
+5-6: Experiencia relevante pero habilidades incompletas → Considerar
+7-8: Experiencia + habilidades sólidas → Avanzar
+9-10: Experiencia + habilidades + formación + logros comprobados → Avanzar
+
+
+═══════════════════════════════════════════════════════════════════════════════
+CONTEXTO DE EVALUACIÓN
 ═══════════════════════════════════════════════════════════════════════════════
 
 JOB DESCRIPTION:
@@ -177,8 +155,24 @@ CV DEL CANDIDATO:
 ${cv}
 
 ═══════════════════════════════════════════════════════════════════════════════
+RESPUESTA REQUERIDA (JSON)
+═══════════════════════════════════════════════════════════════════════════════
 
-Genera la evaluación completa en JSON válido, siguiendo exactamente la plantilla.
+Genera SIEMPRE una respuesta JSON con estos campos:
+- name: Nombre extraído del CV
+- score: Número 1-10
+- justification: Array de 3-5 puntos (cita exactas del CV)
+- strengths: Array de fortalezas documentadas
+- gaps: Array de brechas encontradas
+- recommendation: "Avanzar", "Considerar" o "Descartar"
+- dataIntegrity:
+  - missingCriticalInfo: Array de requisitos críticos NO en CV
+  - infoNotFoundInCV: Array de secciones típicas que faltan
+  - insufficientData: boolean (true si hay muy poca información)
+
+Si score es 1-4, SIEMPRE debe ser "Descartar".
+Si score es 5-6, SIEMPRE debe ser "Considerar".
+Si score es 7-10, SIEMPRE debe ser "Avanzar".
           `
         }
       ],
@@ -205,26 +199,25 @@ Genera la evaluación completa en JSON válido, siguiendo exactamente la plantil
               type: Type.STRING,
               enum: ['Avanzar', 'Considerar', 'Descartar']
             },
-            selfAssessment: {
+            dataIntegrity: {
               type: Type.OBJECT,
               properties: {
-                dataCompleteness: {
-                  type: Type.STRING,
-                  enum: ['Completo', 'Parcial', 'Incompleto']
+                missingCriticalInfo: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
                 },
-                confidence: {
-                  type: Type.STRING,
-                  enum: ['Alta', 'Media', 'Baja']
+                infoNotFoundInCV: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING }
                 },
-                missingInfo: { 
-                  type: Type.STRING,
-                  nullable: true
+                insufficientData: {
+                  type: Type.BOOLEAN
                 }
               },
-              required: ['dataCompleteness', 'confidence']
+              required: ['missingCriticalInfo', 'infoNotFoundInCV', 'insufficientData']
             }
           },
-          required: ['name', 'score', 'justification', 'strengths', 'gaps', 'recommendation', 'selfAssessment']
+          required: ['name', 'score', 'justification', 'strengths', 'gaps', 'recommendation', 'dataIntegrity']
         }
       }
     });
@@ -241,10 +234,10 @@ Genera la evaluación completa en JSON válido, siguiendo exactamente la plantil
         strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ['No especificadas'],
         gaps: Array.isArray(parsed.gaps) ? parsed.gaps : ['No especificadas'],
         recommendation: parsed.recommendation || 'Considerar',
-        selfAssessment: {
-          dataCompleteness: parsed.selfAssessment?.dataCompleteness || 'Parcial',
-          missingInfo: parsed.selfAssessment?.missingInfo || null,
-          confidence: parsed.selfAssessment?.confidence || 'Media'
+        dataIntegrity: {
+          missingCriticalInfo: Array.isArray(parsed.dataIntegrity?.missingCriticalInfo) ? parsed.dataIntegrity.missingCriticalInfo : [],
+          infoNotFoundInCV: Array.isArray(parsed.dataIntegrity?.infoNotFoundInCV) ? parsed.dataIntegrity.infoNotFoundInCV : [],
+          insufficientData: Boolean(parsed.dataIntegrity?.insufficientData)
         }
       };
       

@@ -254,10 +254,10 @@ export interface InterviewQuestion {
 }
 
 const categoryMap: Record<string, string> = {
-  Tecnica: 'Técnica',
-  Comportamental: 'Comportamental',
+  Fortalezas: 'Fortalezas',
+  Brechas: 'Brechas',
+  Motivacion: 'Motivación',
   Situacional: 'Situacional',
-  Verificacion: 'Verificación',
 };
 
 app.post('/api/interview', async (req, res) => {
@@ -276,7 +276,7 @@ app.post('/api/interview', async (req, res) => {
       model: 'gemini-flash-latest',
       contents: [{
         text: `Eres un entrevistador experto en selección de personal.
-Debes preparar preguntas de entrevista PERSONALIZADAS para el siguiente candidato que ha sido preseleccionado.
+Prepara entre 8 y 12 preguntas de entrevista ESTRATÉGICAS Y PERSONALIZADAS para el siguiente candidato preseleccionado.
 
 DESCRIPCIÓN DEL CARGO:
 ${jd}
@@ -287,18 +287,42 @@ ${cv}
 EVALUACIÓN PREVIA:
 - Nombre: ${evaluation.name}
 - Score: ${evaluation.score}/10
-- Fortalezas: ${evaluation.strengths.join(', ')}
-- Brechas: ${evaluation.gaps.join(', ')}
+- Fortalezas identificadas: ${evaluation.strengths.join(' | ')}
+- Brechas identificadas: ${evaluation.gaps.join(' | ')}
 
-INSTRUCCIONES:
-Genera exactamente 8 preguntas divididas en 4 categorías (2 por categoría):
+═══════════════════════════════════════
+INSTRUCCIONES POR CATEGORÍA
+═══════════════════════════════════════
 
-- "Tecnica": Valida habilidades técnicas clave mencionadas en el CV contra el cargo.
-- "Comportamental": Explora situaciones reales pasadas relevantes para el rol (usa formato STAR).
-- "Situacional": Presenta escenarios hipotéticos específicos del cargo para evaluar criterio.
-- "Verificacion": Confirma logros o afirmaciones concretas del CV que necesitan profundidad.
+CATEGORÍA "Fortalezas" — 2 a 3 preguntas:
+Por cada fortaleza principal, genera una pregunta que:
+- Pida un EJEMPLO CONCRETO de una situación real donde aplicó esa habilidad (formato STAR)
+- Haga referencia explícita al candidato (menciona empresa o rol del CV si aplica)
+- Indague en el impacto o decisión difícil tomada
+Ejemplo: si lideró equipos → "Cuéntame un momento específico en [empresa] en que tuviste que tomar una decisión difícil como líder. ¿Qué pasó y cuál fue el resultado?"
 
-Para cada pregunta incluye una justificación breve de por qué es relevante PARA ESTE candidato específico.`
+CATEGORÍA "Brechas" — 2 a 3 preguntas:
+Por cada brecha crítica identificada, genera una pregunta que:
+- Explore si el candidato tiene conocimiento o experiencia en esa área que NO aparece en el CV
+- Sea abierta y no punitiva, dando espacio para explicar proyectos, cursos o experiencias informales
+- Conecte la brecha con el requisito específico del cargo
+Ejemplo: si falta AWS → "El cargo trabaja intensivamente con servicios cloud. ¿Has tenido acercamiento a AWS o plataformas similares, aunque no esté en tu CV? ¿Cómo lo has abordado?"
+
+CATEGORÍA "Motivacion" — 1 a 2 preguntas (OBLIGATORIO al menos 1):
+- Por qué este cargo, esta empresa o esta industria específicamente (no respuesta genérica)
+- Qué espera lograr o aprender en los próximos 12 meses en este rol
+- La pregunta debe conectar el perfil real del candidato con los retos del cargo
+
+CATEGORÍA "Situacional" — 2 a 3 preguntas (OBLIGATORIO al menos 1):
+- Escenarios hipotéticos basados en RETOS REALES descritos en el JD (no genéricos)
+- Evalúan criterio, priorización y toma de decisiones en contexto del rol
+- El escenario debe ser verosímil para alguien con el perfil de este candidato
+
+REGLAS:
+- Total: entre 8 y 12 preguntas
+- Cada "rationale" debe explicar por qué esa pregunta es relevante PARA ESTE candidato
+- Las preguntas de Fortalezas y Brechas deben referenciar datos concretos del CV
+- No repitas conceptos entre preguntas`
       }],
       config: {
         responseMimeType: 'application/json',
@@ -310,7 +334,7 @@ Para cada pregunta incluye una justificación breve de por qué es relevante PAR
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  category: { type: Type.STRING, enum: ['Tecnica', 'Comportamental', 'Situacional', 'Verificacion'] },
+                  category: { type: Type.STRING, enum: ['Fortalezas', 'Brechas', 'Motivacion', 'Situacional'] },
                   question: { type: Type.STRING },
                   rationale: { type: Type.STRING },
                 },

@@ -952,12 +952,12 @@ Sé React y tengo experiencia en frontend.`,
                               </div>
                             </div>
 
-                            {(['Técnica', 'Comportamental', 'Situacional', 'Verificación'] as const).map((cat) => {
+                            {(['Fortalezas', 'Brechas', 'Motivación', 'Situacional'] as const).map((cat) => {
                               const catColors = {
-                                Técnica:       { border: 'border-accent-blue/20',    bg: 'bg-accent-blue/5',    text: 'text-accent-blue',    dot: 'bg-accent-blue' },
-                                Comportamental:{ border: 'border-warning-yellow/20', bg: 'bg-warning-yellow/5', text: 'text-warning-yellow',  dot: 'bg-warning-yellow' },
-                                Situacional:   { border: 'border-success-green/20',  bg: 'bg-success-green/5',  text: 'text-success-green',   dot: 'bg-success-green' },
-                                Verificación:  { border: 'border-text-dim/20',       bg: 'bg-bg-deep',          text: 'text-text-dim',        dot: 'bg-text-dim' },
+                                Fortalezas: { border: 'border-success-green/20',  bg: 'bg-success-green/5',  text: 'text-success-green',  dot: 'bg-success-green',  label: 'Fortalezas — ejemplos concretos' },
+                                Brechas:    { border: 'border-danger-red/20',     bg: 'bg-danger-red/5',     text: 'text-danger-red',     dot: 'bg-danger-red',     label: 'Brechas — experiencia no mencionada' },
+                                Motivación: { border: 'border-warning-yellow/20', bg: 'bg-warning-yellow/5', text: 'text-warning-yellow', dot: 'bg-warning-yellow', label: 'Motivación — fit con el cargo' },
+                                Situacional:{ border: 'border-accent-blue/20',    bg: 'bg-accent-blue/5',    text: 'text-accent-blue',    dot: 'bg-accent-blue',    label: 'Situacional — retos del rol' },
                               };
                               const questions = c.interviewPrep!.questions.filter(q => q.category === cat);
                               if (!questions.length) return null;
@@ -965,8 +965,14 @@ Sé React y tengo experiencia en frontend.`,
                               return (
                                 <div key={cat} className="mb-6">
                                   <div className="flex items-center gap-2 mb-3">
-                                    <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                                    <h6 className={`text-[11px] font-black uppercase tracking-widest ${colors.text}`}>{cat}</h6>
+                                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`} />
+                                    <div>
+                                      <h6 className={`text-[11px] font-black uppercase tracking-widest leading-none ${colors.text}`}>{cat}</h6>
+                                      <p className="text-[10px] text-text-dim mt-0.5">{colors.label}</p>
+                                    </div>
+                                    <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${colors.bg} ${colors.text} border ${colors.border}`}>
+                                      {questions.length} {questions.length === 1 ? 'pregunta' : 'preguntas'}
+                                    </span>
                                   </div>
                                   <div className="space-y-3">
                                     {questions.map((q, qi) => (
