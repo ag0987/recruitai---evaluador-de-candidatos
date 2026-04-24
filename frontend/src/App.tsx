@@ -15,14 +15,17 @@ import {
   Zap
 } from 'lucide-react';
 import { evaluateCandidate, CandidateEvaluation } from './lib/gemini';
+import { parsePDF, parseDOCX } from './lib/fileParser';
 
 // --- Types ---
 interface FileWithContent {
   id: string;
   name: string;
+  fileType: string; // ej: 'txt', 'pdf', 'docx', 'doc'
   content: string;
   evaluation?: CandidateEvaluation;
-  status: 'idle' | 'processing' | 'completed' | 'error';
+  status: 'loading' | 'idle' | 'processing' | 'completed' | 'error';
+  errorMessage?: string;
 }
 
 // --- Components ---
@@ -67,24 +70,66 @@ export default function App() {
   };
 
   const processFiles = (files: File[]) => {
-    files.forEach(file => {
-      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result as string;
-          setCandidates(prev => [
-            ...prev,
-            {
-              id: Math.random().toString(36).substring(7),
-              name: file.name,
-              content,
-              status: 'idle'
-            }
-          ]);
-        };
-        reader.readAsText(file);
+    const newFiles = files.map(file => ({
+      id: Math.random().toString(36).substring(7),
+      name: file.name,
+      fileType: getFileType(file),
+      content: '',
+      status: 'loading' as const,
+    }));
+
+    setCandidates(prev => [...prev, ...newFiles]);
+
+    files.forEach(async (file, index) => {
+      const fileId = newFiles[index].id;
+      const name = file.name.toLowerCase();
+
+      try {
+        if (name.endsWith('.txt')) {
+          const content = await file.text();
+          setCandidates(prev => prev.map(c =>
+            c.id === fileId ? { ...c, content, status: 'idle' } : c
+          ));
+        } else if (name.endsWith('.pdf')) {
+          const { text, isScanned } = await parsePDF(file);
+          if (isScanned) {
+            setCandidates(prev => prev.map(c =>
+              c.id === fileId ? {
+                ...c,
+                status: 'error',
+                errorMessage: 'PDF escaneado: no contiene texto digital. Pide al candidato una versión editable de su CV.',
+              } : c
+            ));
+          } else {
+            setCandidates(prev => prev.map(c =>
+              c.id === fileId ? { ...c, content: text, status: 'idle' } : c
+            ));
+          }
+        } else if (name.endsWith('.docx') || name.endsWith('.doc')) {
+          const content = await parseDOCX(file);
+          setCandidates(prev => prev.map(c =>
+            c.id === fileId ? { ...c, content, status: 'idle' } : c
+          ));
+        } else {
+          setCandidates(prev => prev.map(c =>
+            c.id === fileId ? { ...c, status: 'error', errorMessage: 'Formato no soportado. Usa .txt, .pdf o .docx' } : c
+          ));
+        }
+      } catch {
+        setCandidates(prev => prev.map(c =>
+          c.id === fileId ? { ...c, status: 'error', errorMessage: 'Error al procesar el archivo.' } : c
+        ));
       }
     });
+  };
+
+  const getFileType = (file: File): string => {
+    const name = file.name.toLowerCase();
+    if (name.endsWith('.txt')) return 'TXT';
+    if (name.endsWith('.pdf')) return 'PDF';
+    if (name.endsWith('.docx')) return 'DOCX';
+    if (name.endsWith('.doc')) return 'DOC';
+    return 'OTRO';
   };
 
   const removeCandidate = (id: string) => {
@@ -152,7 +197,8 @@ Idiomas:
     const demoCandidates: FileWithContent[] = [
       {
         id: 'demo-1',
-        name: 'CV_Carlos_Ruiz.txt',
+        name: 'CV_Carlos_Ruiz.docx',
+        fileType: 'DOCX',
         content: `Nombre: Carlos Javier Ruiz
 Perfil: Ingeniero de Software Senior con más de 8 años de experiencia.
 
@@ -177,6 +223,7 @@ Idiomas:
       {
         id: 'demo-2',
         name: 'CV_Elena_Mendez.txt',
+        fileType: 'TXT',
         content: `Elena Méndez Silva
 Desarrolladora Frontend Especialista en React
 
@@ -204,6 +251,7 @@ Logros:
       {
         id: 'demo-3',
         name: 'CV_Juan_Duarte.txt',
+        fileType: 'TXT',
         content: `Juan Pablo Duarte
 Desarrollador Full Stack (Enfoque Backend)
 
@@ -225,6 +273,7 @@ Idiomas:
       {
         id: 'demo-4',
         name: 'CV_Lucia_Ferrand.txt',
+        fileType: 'TXT',
         content: `CURRICULUM VITAE
 
 Nombre: Lucía Ferrand
@@ -249,6 +298,7 @@ Experiencia anterior:
       {
         id: 'demo-5',
         name: 'CV_Candidato_Desconocido.txt',
+        fileType: 'TXT',
         content: `PROFESIONAL DE TECNOLOGÍA
 
 Perfil General:
@@ -268,6 +318,63 @@ Conocimientos:
 Estudios:
 - Técnico Superior en Sistemas de Información.`,
         status: 'idle'
+      },
+      {
+        id: 'demo-6',
+        name: 'CV_Roberto_Gastronomia.txt',
+        fileType: 'TXT',
+        content: `Roberto Salinas Mora
+Cocinero Profesional y Chef de Cocina
+
+Experiencia Laboral:
+- Chef Principal en Restaurante La Parrilla Real (2018 - Actualidad):
+  Diseño de menús de temporada, gestión del equipo de cocina (8 personas), control de inventario y costos de materia prima.
+- Cocinero en Hotel Boutique El Mirador (2015 - 2018):
+  Preparación de desayunos, almuerzos y cenas para huéspedes. Atención a dietas especiales y alergias alimentarias.
+- Ayudante de Cocina en Catering Eventos Premium (2013 - 2015):
+  Apoyo en eventos corporativos y sociales para más de 500 personas.
+
+Formación:
+- Técnico en Gastronomía y Alta Cocina - Instituto Culinario Nacional (2013)
+- Curso de Pastelería Francesa - Escuela Le Cordon Bleu, Ciudad de México (2016)
+- Certificación en Manipulación Higiénica de Alimentos - INVIMA (2019)
+
+Habilidades:
+- Cocina francesa, italiana y latinoamericana.
+- Gestión de equipos y liderazgo en cocina.
+- Control de costos y elaboración de menús.
+- Creatividad e innovación en platos.
+
+Idiomas:
+- Español: Nativo. Inglés: Básico (para lectura de recetas).`,
+        status: 'idle'
+      },
+      {
+        id: 'demo-7',
+        name: 'CV_Sin_Informacion.txt',
+        fileType: 'TXT',
+        content: `Ana Torres
+
+Desarrolladora web.
+
+Sé React y tengo experiencia en frontend.`,
+        status: 'idle'
+      },
+      {
+        id: 'demo-8',
+        name: 'CV_Escaneado.pdf',
+        fileType: 'PDF',
+        content: '',
+        status: 'error',
+        errorMessage: 'PDF escaneado: no contiene texto digital. Pide al candidato una versión editable de su CV.',
+      },
+      {
+        id: 'demo-9',
+        name: 'CV_Datos_Corruptos.pdf',
+        fileType: 'PDF',
+        content: '',
+        status: 'error',
+        errorMessage: 'Error al procesar el archivo. El PDF está dañado o tiene un formato no compatible.',
       }
     ];
 
@@ -283,21 +390,25 @@ Estudios:
 
   const runEvaluationImplicit = async (jdText: string, candidatesList: FileWithContent[]) => {
     setIsProcessing(true);
-    
-    setCandidates(prev => prev.map(c => ({ ...c, status: 'processing' })));
+
+    setCandidates(prev => prev.map(c =>
+      c.status === 'error' ? c : { ...c, status: 'processing' }
+    ));
 
     try {
       await Promise.all(candidatesList.map(async (candidate) => {
+        if (candidate.status === 'completed' || candidate.status === 'error') return;
+
         try {
           const evalResult = await evaluateCandidate(jdText, candidate.content);
-          setCandidates(prev => prev.map(c => 
-            c.id === candidate.id 
-              ? { ...c, evaluation: evalResult, status: 'completed' } 
+          setCandidates(prev => prev.map(c =>
+            c.id === candidate.id
+              ? { ...c, evaluation: evalResult, status: 'completed' }
               : c
           ));
         } catch (error) {
           console.error(`Error evaluating ${candidate.name}:`, error);
-          setCandidates(prev => prev.map(c => 
+          setCandidates(prev => prev.map(c =>
             c.id === candidate.id ? { ...c, status: 'error' } : c
           ));
         }
@@ -365,7 +476,7 @@ Estudios:
           <section className="bg-bg-card p-5 rounded-xl border border-border-dark flex flex-col h-[400px]">
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-text-dim mb-4 flex items-center gap-2 font-sans italic-none">
               <Upload size={14} className="text-accent-blue" />
-              2. Cargar Candidatos (.txt)
+              2. Cargar Candidatos (.txt, .pdf, .docx)
             </h2>
             <div
               onDragOver={(e) => e.preventDefault()}
@@ -375,7 +486,7 @@ Estudios:
               <input
                 type="file"
                 multiple
-                accept=".txt"
+                accept=".txt,.pdf,.docx,.doc"
                 onChange={handleFileUpload}
                 className="absolute inset-0 opacity-0 cursor-pointer"
               />
@@ -383,34 +494,120 @@ Estudios:
                 <FileText className="text-accent-blue" size={24} />
               </div>
               <p className="text-[13px] text-text-main font-medium text-center">Arrastra archivos aquí o haz clic</p>
-              <p className="text-[11px] text-text-dim text-center opacity-70">Máx. 10 archivos (.txt)</p>
+              <p className="text-[11px] text-text-dim text-center opacity-70">Máx. 10 archivos (TXT, PDF, DOCX)</p>
             </div>
 
             {/* Candidate List (Queue) */}
             <div className="mt-4 space-y-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
-              {candidates.map((c) => (
+              {/* Barra de estado detallada */}
+              {candidates.length > 0 && (() => {
+                const loading    = candidates.filter((c: FileWithContent) => c.status === 'loading').length;
+                const processing = candidates.filter((c: FileWithContent) => c.status === 'processing').length;
+                const idle       = candidates.filter((c: FileWithContent) => c.status === 'idle').length;
+                const completed  = candidates.filter((c: FileWithContent) => c.status === 'completed').length;
+                const errors     = candidates.filter((c: FileWithContent) => c.status === 'error').length;
+                return (
+                  <div className="px-3 py-2 rounded-lg bg-bg-deep border border-border-dark mb-2 flex flex-wrap gap-x-3 gap-y-1 items-center">
+                    <span className="text-[10px] font-bold text-text-dim uppercase tracking-widest">
+                      {candidates.length} archivo{candidates.length !== 1 ? 's' : ''}
+                    </span>
+                    {(loading + processing) > 0 && (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-accent-blue">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent-blue animate-pulse" />
+                        {loading + processing} procesando
+                      </span>
+                    )}
+                    {idle > 0 && (
+                      <span className="text-[10px] font-bold text-warning-yellow">
+                        {idle} en cola
+                      </span>
+                    )}
+                    {completed > 0 && (
+                      <span className="text-[10px] font-bold text-success-green">
+                        ✓ {completed} {completed === 1 ? 'listo' : 'listos'}
+                      </span>
+                    )}
+                    {errors > 0 && (
+                      <span className="text-[10px] font-bold text-danger-red">
+                        ⚠ {errors} con error
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {candidates.map((c) => {
+                const badgeColors: Record<string, string> = {
+                  PDF:  'text-danger-red bg-danger-red/10',
+                  DOCX: 'text-accent-blue bg-accent-blue/10',
+                  DOC:  'text-accent-blue bg-accent-blue/10',
+                  TXT:  'text-text-dim bg-bg-deep',
+                };
+                const badge = badgeColors[c.fileType] ?? 'text-text-dim bg-bg-deep';
+                return (
                 <motion.div
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   key={c.id}
-                  className="flex items-center justify-between p-2.5 bg-bg-input rounded-lg border border-border-dark"
+                  className={`flex items-start justify-between p-2.5 bg-bg-input rounded-lg border transition-all ${
+                    c.status === 'error' ? 'border-danger-red/50 bg-danger-red/5' : 'border-border-dark'
+                  }`}
                 >
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    <FileText size={14} className="text-text-dim" />
-                    <span className="text-[12px] font-medium truncate text-text-main">{c.evaluation?.name || c.name}</span>
+                  <div className="flex items-start gap-2 overflow-hidden flex-1">
+                    <FileText size={14} className="text-text-dim flex-shrink-0 mt-0.5" />
+                    <div className="overflow-hidden flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded flex-shrink-0 ${badge}`}>
+                          {c.fileType}
+                        </span>
+                        <span className="text-[12px] font-medium truncate text-text-main">
+                          {c.evaluation?.name || c.name}
+                        </span>
+                      </div>
+                      {c.errorMessage && (
+                        <p className="text-[10px] text-danger-red mt-1 leading-snug">
+                          ⚠ {c.errorMessage}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  {c.status === 'idle' && (
-                    <button onClick={() => removeCandidate(c.id)} className="text-text-dim hover:text-danger-red transition-colors">
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                  {c.status === 'processing' && (
-                    <div className="w-3 h-3 border-2 border-accent-blue border-t-transparent rounded-full animate-spin" />
-                  )}
-                  {c.status === 'completed' && <CheckCircle2 size={16} className="text-success-green" />}
-                  {c.status === 'error' && <AlertCircle size={16} className="text-danger-red" title="Error en la evaluación" />}
+
+                  {/* Estado del archivo */}
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                    {c.status === 'loading' && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 border-2 border-warning-yellow border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[10px] text-warning-yellow font-bold">Leyendo...</span>
+                      </div>
+                    )}
+                    {c.status === 'idle' && (
+                      <button 
+                        onClick={() => removeCandidate(c.id)} 
+                        className="text-text-dim hover:text-danger-red transition-colors flex-shrink-0"
+                        title="Eliminar archivo"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                    {c.status === 'processing' && (
+                      <div className="flex items-center gap-1">
+                        <div className="w-2 h-2 border-2 border-accent-blue border-t-transparent rounded-full animate-spin" />
+                        <span className="text-[10px] text-accent-blue font-bold">Evaluando...</span>
+                      </div>
+                    )}
+                    {c.status === 'completed' && (
+                      <CheckCircle2 size={16} className="text-success-green flex-shrink-0" />
+                    )}
+                    {c.status === 'error' && (
+                      <AlertCircle 
+                        size={16} 
+                        className="text-danger-red flex-shrink-0"
+                        title={c.errorMessage || 'Error en el archivo'}
+                      />
+                    )}
+                  </div>
                 </motion.div>
-              ))}
+              ); })}
               {candidates.length === 0 && (
                 <div className="text-center py-4 text-[10px] text-text-dim uppercase tracking-[0.2em] opacity-40">
                   Sin candidatos en cola
@@ -570,37 +767,64 @@ Estudios:
                         </div>
                       </div>
 
-                      {/* Self-Assessment Section */}
-                      {c.evaluation?.selfAssessment && (
-                        <div className="mt-8 pt-8 border-t border-border-dark space-y-4">
-                          <h5 className="text-[12px] font-bold text-text-dim uppercase tracking-widest italic">Autoevaluación del Análisis</h5>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="p-3 rounded-lg bg-bg-input border border-border-dark">
-                              <p className="text-[10px] text-text-dim uppercase font-black tracking-[0.1em] mb-1">Completitud de Datos</p>
-                              <p className={`text-sm font-bold ${
-                                c.evaluation.selfAssessment.dataCompleteness === 'Completo' ? 'text-success-green' :
-                                c.evaluation.selfAssessment.dataCompleteness === 'Parcial' ? 'text-warning-yellow' :
-                                'text-danger-red'
-                              }`}>
-                                {c.evaluation.selfAssessment.dataCompleteness}
+                      {/* Data Integrity Section - Información sobre datos faltantes */}
+                      {c.evaluation?.dataIntegrity && (
+                        <div className="mt-8 pt-8 border-t border-border-dark space-y-6">
+                          {/* Advertencia de Datos Insuficientes */}
+                          {c.evaluation.dataIntegrity.insufficientData && (
+                            <div className="p-4 rounded-xl bg-danger-red/10 border border-danger-red/30">
+                              <h6 className="text-[12px] font-bold text-danger-red uppercase tracking-widest mb-2 flex items-center gap-2">
+                                <AlertCircle size={16} />
+                                ⚠️ ADVERTENCIA: Datos Insuficientes
+                              </h6>
+                              <p className="text-xs text-danger-red leading-relaxed">
+                                Este CV contiene muy poca información. La evaluación puede ser especulativa. Se recomienda solicitar más detalles al candidato antes de tomar una decisión final.
                               </p>
                             </div>
-                            <div className="p-3 rounded-lg bg-bg-input border border-border-dark">
-                              <p className="text-[10px] text-text-dim uppercase font-black tracking-[0.1em] mb-1">Confianza del Análisis</p>
-                              <p className={`text-sm font-bold ${
-                                c.evaluation.selfAssessment.confidence === 'Alta' ? 'text-success-green' :
-                                c.evaluation.selfAssessment.confidence === 'Media' ? 'text-warning-yellow' :
-                                'text-danger-red'
-                              }`}>
-                                {c.evaluation.selfAssessment.confidence}
-                              </p>
-                            </div>
-                            <div className="p-3 rounded-lg bg-bg-input border border-border-dark">
-                              <p className="text-[10px] text-text-dim uppercase font-black tracking-[0.1em] mb-1">Datos Faltantes</p>
-                              <p className="text-xs text-text-main italic-none">
-                                {c.evaluation.selfAssessment.missingInfo ? c.evaluation.selfAssessment.missingInfo : 'Ninguno'}
-                              </p>
-                            </div>
+                          )}
+
+                          <div className="p-4 rounded-xl bg-warning-yellow/5 border border-warning-yellow/20">
+                            <h5 className="text-[12px] font-bold text-warning-yellow uppercase tracking-widest mb-4 flex items-center gap-2">
+                              <AlertCircle size={16} />
+                              Integridad de Datos - Información No Encontrada en el CV
+                            </h5>
+                            <p className="text-xs text-text-main/70 mb-4 leading-relaxed">
+                              Como evaluador riguroso y objetivo, se reportan aquí los requisitos y datos que <strong>NO aparecen explícitamente</strong> en el CV del candidato.
+                            </p>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {c.evaluation.dataIntegrity.missingCriticalInfo.length > 0 && (
+                              <div className="space-y-3">
+                                <h6 className="text-[11px] font-bold text-danger-red uppercase tracking-widest flex items-center gap-2">
+                                  <XCircle size={14} />
+                                  Requisitos Críticos NO ENCONTRADOS
+                                </h6>
+                                <ul className="space-y-2">
+                                  {c.evaluation.dataIntegrity.missingCriticalInfo.map((info, i) => (
+                                    <li key={i} className="text-xs p-3 rounded-lg bg-danger-red/5 border border-danger-red/10 text-danger-red font-medium">
+                                      • {info}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {c.evaluation.dataIntegrity.infoNotFoundInCV.length > 0 && (
+                              <div className="space-y-3">
+                                <h6 className="text-[11px] font-bold text-warning-yellow uppercase tracking-widest flex items-center gap-2">
+                                  <AlertCircle size={14} />
+                                  Información NO Especificada
+                                </h6>
+                                <ul className="space-y-2">
+                                  {c.evaluation.dataIntegrity.infoNotFoundInCV.map((info, i) => (
+                                    <li key={i} className="text-xs p-3 rounded-lg bg-warning-yellow/5 border border-warning-yellow/10 text-warning-yellow font-medium">
+                                      • {info}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
