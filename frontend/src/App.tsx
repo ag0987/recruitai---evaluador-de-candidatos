@@ -15,6 +15,8 @@ import {
   Zap,
   MessageSquare,
   Lightbulb,
+  Copy,
+  Download,
 } from 'lucide-react';
 import { evaluateCandidate, prepareInterview, CandidateEvaluation, InterviewPrep } from './lib/gemini';
 import { parsePDF, parseDOCX } from './lib/fileParser';
@@ -61,6 +63,7 @@ export default function App() {
   const [jd, setJd] = useState('');
   const [candidates, setCandidates] = useState<FileWithContent[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []) as File[];
@@ -192,6 +195,58 @@ export default function App() {
         c.id === candidateId ? { ...c, interviewStatus: 'error', errorMessage: msg } : c
       ));
     }
+  };
+
+  const buildInterviewText = (candidate: FileWithContent): string => {
+    const { evaluation, interviewPrep } = candidate;
+    const date = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' });
+    const categories = ['Fortalezas', 'Brechas', 'Motivación', 'Situacional'] as const;
+    const categoryLabels: Record<string, string> = {
+      Fortalezas: 'FORTALEZAS — Ejemplos concretos',
+      Brechas: 'BRECHAS — Experiencia no mencionada',
+      Motivación: 'MOTIVACIÓN — Fit con el cargo',
+      Situacional: 'SITUACIONAL — Retos del rol',
+    };
+
+    let text = `GUÍA DE ENTREVISTA — ${evaluation?.name ?? candidate.name}\n`;
+    text += `Score: ${evaluation?.score}/10 | Recomendación: ${evaluation?.recommendation}\n`;
+    text += `Generado: ${date}\n`;
+    text += `${'═'.repeat(50)}\n\n`;
+
+    categories.forEach(cat => {
+      const questions = interviewPrep!.questions.filter(q => q.category === cat);
+      if (!questions.length) return;
+      text += `${categoryLabels[cat]}\n`;
+      text += `${'─'.repeat(40)}\n`;
+      questions.forEach((q, i) => {
+        text += `\n${i + 1}. ${q.question}\n`;
+        text += `   → ${q.rationale}\n`;
+      });
+      text += '\n';
+    });
+
+    return text;
+  };
+
+  const handleCopyQuestions = async (candidate: FileWithContent) => {
+    const text = buildInterviewText(candidate);
+    await navigator.clipboard.writeText(text);
+    setCopiedId(candidate.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDownloadQuestions = (candidate: FileWithContent) => {
+    const text = buildInterviewText(candidate);
+    const rawName = candidate.evaluation?.name ?? candidate.name;
+    const safeName = rawName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-áéíóúñÁÉÍÓÚÑüÜ]/g, '');
+    const date = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Entrevista_${safeName}_${date}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const loadDemoData = () => {
@@ -942,13 +997,33 @@ Sé React y tengo experiencia en frontend.`,
                             exit={{ opacity: 0, height: 0 }}
                             className="mt-8 pt-8 border-t border-border-dark overflow-hidden"
                           >
-                            <div className="flex items-center gap-2 mb-6">
-                              <div className="bg-accent-blue/10 p-2 rounded-lg border border-accent-blue/20">
-                                <MessageSquare size={16} className="text-accent-blue" />
+                            <div className="flex items-center gap-2 mb-6 justify-between flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <div className="bg-accent-blue/10 p-2 rounded-lg border border-accent-blue/20">
+                                  <MessageSquare size={16} className="text-accent-blue" />
+                                </div>
+                                <div>
+                                  <h5 className="text-[13px] font-bold text-text-main italic">Guía de Entrevista</h5>
+                                  <p className="text-[10px] text-text-dim uppercase tracking-widest">Personalizada para {c.evaluation?.name}</p>
+                                </div>
                               </div>
-                              <div>
-                                <h5 className="text-[13px] font-bold text-text-main italic">Guía de Entrevista</h5>
-                                <p className="text-[10px] text-text-dim uppercase tracking-widest">Personalizada para {c.evaluation?.name}</p>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleCopyQuestions(c)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border border-border-dark bg-bg-input text-text-dim hover:text-text-main hover:border-accent-blue/50 transition-all"
+                                  title="Copiar preguntas al portapapeles"
+                                >
+                                  <Copy size={12} />
+                                  {copiedId === c.id ? '¡Copiado!' : 'Copiar preguntas'}
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadQuestions(c)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border border-border-dark bg-bg-input text-text-dim hover:text-text-main hover:border-accent-blue/50 transition-all"
+                                  title="Descargar preguntas como archivo de texto"
+                                >
+                                  <Download size={12} />
+                                  Descargar
+                                </button>
                               </div>
                             </div>
 
